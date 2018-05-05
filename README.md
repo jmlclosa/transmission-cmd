@@ -14,7 +14,7 @@ machine localhost
 login transmission
 password transmission
 ```
-4. Create tra.properties file on $HOME to configure where torrents must be auto organized. 
+4. Create tra.properties file on $HOME to configure where torrents must be auto organized. In this example, if a torrent name contains "Anatomia", torrent will be moved to $FINISHED_DIR/series/anatomia_grey
 ```
 Suits=series/suits
 Joven=series/joven_sheldon
@@ -22,8 +22,21 @@ Anatomia=series/anatomia_grey
 Fear=series/fear_walking_dead
 Bang=series/big_bang_theory
 ```
-In this example, if a torrent name contains "Anatomia", torrent will be moved to $FINISHED_DIR/series/anatomia_grey
-5. Enjoy :)
+5. Configure transmission to auto organize torrents on finish.
+5.1. Create /usr/local/bin/organize_torrent.sh and give permissions:
+```
+#!/bin/bash
+tra org $TR_TORRENT_ID
+```
+```
+sudo chmod +x /usr/local/bin/organize_torrent.sh
+```
+5.2. Edit /etc/transmission-daemon/settings.json:
+```
+    "script-torrent-done-enabled": true,
+    "script-torrent-done-filename": "/usr/local/bin/organize_torrent.sh",
+```
+6. Enjoy :)
 
 ## Examples
 * List all torrents
