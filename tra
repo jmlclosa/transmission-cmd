@@ -1,0 +1,94 @@
+#!/bin/bash
+usage()
+{
+echo "usage: tra [command] [arguments]"
+echo "	list				list all transmission torrents"
+echo "	move TORRENT_ID 		Move torrent file to finished directory"
+echo "	move TORRENT_ID DEST_DIR	Move torrent file to DEST_DIR"
+echo "	org				Auto organize torrent finished files based on tra.properties"
+exit 1
+}
+
+## Configuration
+#USER=transmission
+#PASS=transmission
+NETRC_FILE=$HOME/.netrc.transmission
+TR=transmission-remote
+#REMOTE="$TR -n $USER:$PASS"
+#REMOTE_ACTION="echo $TR -n $USER:$PASS"
+REMOTE="$TR -N $NETRC_FILE"
+REMOTE_ACTION="$TR -N $NETRC_FILE"
+FINISHED_DIR=$HOME/videos
+KEYS_FILE="$HOME/tra.properties"
+
+COMMAND=$1
+
+startsWith() { case $2 in "$1"*) true;; *) false;; esac; }
+contains() { case $2 in *"$1"*) true;; *) false;; esac; }
+moveTorrent()
+{
+	TORRENT_NAME=$1
+	TORRENT_ID=$2
+	if [ -f "$KEYS_FILE" ]; then
+		while IFS='=' read -r key value
+		do
+#			echo "Compare $key with $TORRENT_NAME"
+			if contains "$key" "$TORRENT_NAME" ; then
+			        DESTINATION_DIR="/$value"
+			fi
+		done < "$KEYS_FILE"
+		if [ "x$DESTINATION_DIR" == "x" ]; then
+			DESTINATION_DIR=""
+		fi	
+		echo "Moving torrent $TORRENT_ID to $FINISHED_DIR$DESTINATION_DIR"
+	        $REMOTE_ACTION --torrent $TORRENT_ID --move "$FINISHED_DIR$DESTINATION_DIR"
+	else
+		echo "ERROR: file tra.properties not found"
+	fi
+}
+organizeTorrent()
+{
+	ID=$1
+	NAME="$($REMOTE --torrent $ID --info | grep Name:)"
+	CURRENT_DIR="$($REMOTE --torrent $ID --info | grep Location: | awk '{ print $2; }')"
+	if startsWith "$CURRENT_DIR" "$FINISHED_DIR" ; then
+		echo "<<< Moving torrent $ID: ${NAME#*Name:}"
+		NORMALIZED_NAME=$(echo "${NAME#*Name:}" | tr ' ' '_')
+		moveTorrent $NORMALIZED_NAME $ID
+	fi
+}
+
+case $COMMAND in
+list)
+	$REMOTE -l
+	;;
+org)
+	if [ -z "$2" ]; then
+		LIST="$($REMOTE -l | tail --lines=+2 | grep 100% | awk '{ print $1; }' )"
+		for ID in $LIST; do
+			organizeTorrent $ID
+		done
+	else
+		ID=$2
+		organizeTorrent $ID
+	fi
+  	;;
+info)
+	$REMOTE --torrent $2 --info
+	;;
+move)
+	if [ -z "$2" ]; then
+		usage
+	fi
+	if [ -z "$3" ]; then
+		echo "<<< Moving torrent $2 to $FINISHED_DIR"
+		$REMOTE_ACTION --torrent $2 --move $FINISHED_DIR
+	else
+		echo "<<< Moving torrent $2 to $3"
+		$REMOTE_ACTION --torrent $2 --move $3
+	fi
+	;;
+*)
+	usage
+esac
+
