@@ -40,8 +40,11 @@ moveTorrent()
 		if [ "x$DESTINATION_DIR" == "x" ]; then
 			DESTINATION_DIR=""
 		fi	
-		echo "Moving torrent $TORRENT_ID to $FINISHED_DIR$DESTINATION_DIR"
-	        $REMOTE_ACTION --torrent $TORRENT_ID --move "$FINISHED_DIR$DESTINATION_DIR"
+		CURRENT_DIR="$($REMOTE --torrent $TORRENT_ID --info | grep Location: | awk '{ print $2; }')"
+		if [[ "$CURRENT_DIR" != "$FINISHED_DIR$DESTINATION_DIR" ]]; then
+			echo "Moving torrent $TORRENT_ID to $FINISHED_DIR$DESTINATION_DIR"
+	        	$REMOTE_ACTION --torrent $TORRENT_ID --move "$FINISHED_DIR$DESTINATION_DIR"
+		fi
 	else
 		echo "ERROR: file tra.properties not found"
 	fi
@@ -50,12 +53,9 @@ organizeTorrent()
 {
 	ID=$1
 	NAME="$($REMOTE --torrent $ID --info | grep Name:)"
-	CURRENT_DIR="$($REMOTE --torrent $ID --info | grep Location: | awk '{ print $2; }')"
-	if startsWith "$CURRENT_DIR" "$FINISHED_DIR" ; then
-		echo "<<< Moving torrent $ID: ${NAME#*Name:}"
-		NORMALIZED_NAME=$(echo "${NAME#*Name:}" | tr ' ' '_')
-		moveTorrent $NORMALIZED_NAME $ID
-	fi
+	echo "<<< Organizing torrent $ID: ${NAME#*Name:}"
+	NORMALIZED_NAME=$(echo "${NAME#*Name:}" | tr ' ' '_')
+	moveTorrent $NORMALIZED_NAME $ID
 }
 
 case $COMMAND in
